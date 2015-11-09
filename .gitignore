@@ -3,7 +3,6 @@
 .project
 .settings
 eclipsebin
-gradle
 
 bin
 gen
