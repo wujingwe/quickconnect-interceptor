@@ -33,7 +33,8 @@ client.interceptors().add(new QuickConnectInterceptor());
 To use QuickConnect, you need to have a QuickConnect ID. To compose a HTTP request, replace hostname with QuickConnect ID.
 For example, if your QuickConnect ID is "**dsm**" and want to send a pingpong request(webman/pingpong.cgi?action=cors), the request should be looked like:
 ```java
-HttpUrl httpUrl = HttpUrl.parse("http://dsm/webman/pingpong.cgi?action=cors");
+String QuickconnectId = "dsm";
+HttpUrl httpUrl = HttpUrl.parse("http://" + QuickconnectId +"/webman/pingpong.cgi?action=cors");
 Request request = new Request.Builder().url(httpUrl).build();
 client.newCall(request).execute();
 ```
