@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
 import com.squareup.okhttp.*;
-import me.oldjing.quickconnect.json.PingpongJson;
+import me.oldjing.quickconnect.json.PingPongJson;
 import me.oldjing.quickconnect.json.ServerInfoJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson.InterfaceJson;
@@ -120,7 +120,7 @@ public class QuickConnectResolver {
 		throw new IOException("No valid url resolved");
 	}
 
-	private ServerInfoJson getServerInfo(HttpUrl serverUrl, String serverID, String id) throws IOException {
+	public ServerInfoJson getServerInfo(HttpUrl serverUrl, String serverID, String id) throws IOException {
 		// set timeout to 30 seconds
 		client.setConnectTimeout(30, TimeUnit.SECONDS);
 		client.setReadTimeout(30, TimeUnit.SECONDS);
@@ -165,7 +165,7 @@ public class QuickConnectResolver {
 		throw new IOException("No server info found!");
 	}
 
-	private HttpUrl pingDSM(ServerInfoJson infoJson) {
+	public HttpUrl pingDSM(ServerInfoJson infoJson) {
 		// set timeout to 5 seconds
 		client.setConnectTimeout(5, TimeUnit.SECONDS);
 		client.setReadTimeout(5, TimeUnit.SECONDS);
@@ -314,7 +314,7 @@ public class QuickConnectResolver {
 	}
 
 	private Callable<String> createPingTask(final String host, int port) {
-		final HttpUrl pingpongUrl = new HttpUrl.Builder()
+		final HttpUrl pingPongUrl = new HttpUrl.Builder()
 				.scheme(requestUrl.scheme())
 				.host(host)
 				.port(port)
@@ -326,15 +326,15 @@ public class QuickConnectResolver {
 			@Override
 			public String call() throws Exception {
 				Request request = new Request.Builder()
-						.url(pingpongUrl)
+						.url(pingPongUrl)
 						.build();
 				Response response = client.newCall(request).execute();
 				InputStream in = response.body().byteStream();
 				JsonReader reader = null;
 				try {
 					reader = new JsonReader(new InputStreamReader(in, "UTF-8"));
-					PingpongJson pingpongJson = gson.fromJson(reader, PingpongJson.class);
-					if (pingpongJson != null && pingpongJson.success) {
+					PingPongJson pingPongJson = gson.fromJson(reader, PingPongJson.class);
+					if (pingPongJson != null && pingPongJson.success) {
 						return host;
 					}
 				} finally {
@@ -347,12 +347,16 @@ public class QuickConnectResolver {
 		};
 	}
 
-	private ServerInfoJson requestTunnel(ServerInfoJson infoJson, String serverID, String id) throws IOException {
+	public ServerInfoJson requestTunnel(ServerInfoJson infoJson, String serverID, String id) throws IOException {
 		if (infoJson == null
 				|| infoJson.env == null
 				|| Util.isEmpty(infoJson.env.control_host)) {
 			return null;
 		}
+
+		// set timeout to 30 seconds
+		client.setConnectTimeout(30, TimeUnit.SECONDS);
+		client.setReadTimeout(30, TimeUnit.SECONDS);
 
 		final String server = infoJson.env.control_host;
 
