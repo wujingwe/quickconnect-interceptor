@@ -1,13 +1,26 @@
 package me.oldjing.quickconnect;
 
-import com.squareup.okhttp.*;
+import com.squareup.okhttp.HttpUrl;
+import com.squareup.okhttp.Interceptor;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Response;
+import me.oldjing.quickconnect.store.RelayCookie;
+import me.oldjing.quickconnect.store.RelayHandler;
+import me.oldjing.quickconnect.store.RelayManager;
 
 import java.io.IOException;
 
-import static me.oldjing.quickconnect.Connection.ID_DSM_PORTAL;
-import static me.oldjing.quickconnect.Connection.ID_DSM_PORTAL_HTTPS;
-
 public class QuickConnectInterceptor implements Interceptor {
+
+	public static final String ID_DSM_PORTAL = "dsm_portal";
+	public static final String ID_DSM_PORTAL_HTTPS = "dsm_portal_https";
+
+	private RelayManager relayManager;
+
+	public QuickConnectInterceptor() {
+		relayManager = new RelayManager();
+		RelayHandler.setDefault(relayManager);
+	}
 
 	@Override
 	public Response intercept(Chain chain) throws IOException {
@@ -20,17 +33,26 @@ public class QuickConnectInterceptor implements Interceptor {
 			final String serverID = host;
 			final String id = isHttps ? ID_DSM_PORTAL_HTTPS : ID_DSM_PORTAL;
 
-			Connection connection = Util.getConnection(host);
-			if (connection == null) {
+			RelayCookie cookie = relayManager.get(serverID);
+			if (cookie == null) {
 				// no quick connect information yet!
-				connection = Util.addConnection(serverID, id);
+				cookie = new RelayCookie.Builder()
+						.serverID(serverID)
+						.id(id)
+						.build();
 			}
-			if (connection.resolvedUrl() == null) {
+			if (cookie.resolvedUrl() == null) {
 				// not resolved yet!
 				QuickConnectResolver resolver = new QuickConnectResolver(requestUrl);
-				connection = resolver.resolveUrl(serverID, id);
+				cookie = resolver.resolve(serverID, id);
+
+				// update cache
+				relayManager.put(serverID, cookie);
 			}
-			HttpUrl resolvedUrl = connection.resolvedUrl();
+			HttpUrl resolvedUrl = cookie.resolvedUrl();
+			if (resolvedUrl == null) {
+				throw new IOException("resolvedUrl == null");
+			}
 			host = resolvedUrl.host();
 			if (host.indexOf(':') != -1) {
 				host = "[" + host + "]"; // add brackets for IPv6

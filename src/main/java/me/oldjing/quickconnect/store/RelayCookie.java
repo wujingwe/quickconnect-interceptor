@@ -1,30 +1,24 @@
-package me.oldjing.quickconnect;
+package me.oldjing.quickconnect.store;
 
 import com.squareup.okhttp.HttpUrl;
 
-import java.io.Serializable;
-
-public class Connection implements Serializable {
-	public static final String ID_DSM_PORTAL = "dsm_portal";
-	public static final String ID_DSM_PORTAL_HTTPS = "dsm_portal_https";
+public class RelayCookie {
 
 	private String serverID;
-	private String id; // dsm_portal or dsm_portal_https
+	private String id;
 	private HttpUrl resolvedUrl;
 
-	public Connection(Builder builder) {
+	private RelayCookie(Builder builder) {
 		serverID = builder.serverID;
 		id = builder.id;
 		resolvedUrl = builder.resolvedUrl;
 	}
 
-	private Connection() {}
-
 	public Builder newBuilder() {
 		return new Builder()
-				.serverID(serverID)
-				.id(id)
-				.resolvedUrl(resolvedUrl);
+				       .serverID(serverID)
+				       .id(id)
+				       .resolvedUrl(resolvedUrl);
 	}
 
 	public String serverID() {
@@ -59,8 +53,8 @@ public class Connection implements Serializable {
 			return this;
 		}
 
-		public Connection build() {
-			return new Connection(this);
+		public RelayCookie build() {
+			return new RelayCookie(this);
 		}
 	}
 }

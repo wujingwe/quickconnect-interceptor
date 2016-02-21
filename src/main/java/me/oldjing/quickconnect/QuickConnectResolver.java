@@ -10,6 +10,9 @@ import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson.InterfaceJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson.InterfaceJson.Ipv6Json;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServiceJson;
+import me.oldjing.quickconnect.store.RelayCookie;
+import me.oldjing.quickconnect.store.RelayHandler;
+import me.oldjing.quickconnect.store.RelayManager;
 
 import javax.net.ssl.*;
 import java.io.IOException;
@@ -65,35 +68,40 @@ public class QuickConnectResolver {
 		gson = new Gson();
 	}
 
-	public Connection resolveUrl(String serverID, String id) throws IOException {
+	public RelayCookie resolve(String serverID, String id) throws IOException {
 		if (!Util.isQuickConnectId(serverID)) {
 			throw new IllegalArgumentException("serverID isn't a Quick Connect ID");
 		}
 
-		Connection connection = Util.getConnection(serverID);
-		if (connection == null) {
-			connection = Util.addConnection(serverID, id);
+		RelayManager relayManager = (RelayManager) RelayHandler.getDefault();
+		RelayCookie cookie = relayManager.get(serverID);
+		if (cookie == null) {
+			cookie = new RelayCookie.Builder()
+					.serverID(serverID)
+					.id(id)
+					.build();
+			relayManager.put(serverID, cookie);
 		}
 
-		ServerInfoJson infoJson = getServerInfo(
-				HttpUrl.parse("http://global.quickconnect.to/Serv.php"), serverID, id);
+		HttpUrl serverUrl = HttpUrl.parse("http://global.quickconnect.to/Serv.php");
+		ServerInfoJson infoJson = getServerInfo(serverUrl, serverID, id);
 
 		// ping DSM directly
 		HttpUrl resolvedUrl = pingDSM(infoJson);
 		if (resolvedUrl != null) {
-			connection = connection.newBuilder()
+			cookie = cookie.newBuilder()
 					.resolvedUrl(resolvedUrl)
 					.build();
-			return connection;
+			return cookie;
 		}
 
 		// ping DSM through tunnel
 		resolvedUrl = pingTunnel(infoJson.service);
 		if (resolvedUrl != null) {
-			connection = connection.newBuilder()
+			cookie = cookie.newBuilder()
 					.resolvedUrl(resolvedUrl)
 					.build();
-			return connection;
+			return cookie;
 		}
 
 		// request tunnel
@@ -103,13 +111,13 @@ public class QuickConnectResolver {
 					.host(infoJson.service.relay_ip)
 					.port(infoJson.service.relay_port)
 					.build();
-			connection = connection.newBuilder()
+			cookie = cookie.newBuilder()
 					.resolvedUrl(resolvedUrl)
 					.build();
-			return connection;
+			return cookie;
 		}
 
-		return null;
+		throw new IOException("No valid url resolved");
 	}
 
 	private ServerInfoJson getServerInfo(HttpUrl serverUrl, String serverID, String id) throws IOException {
