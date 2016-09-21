@@ -1,5 +1,13 @@
 apply plugin: 'java'
 
+sourceSets {
+    test {
+        java {
+            srcDirs = ["test/java"]  // Note @Peter's comment below
+        }
+    }
+}
+
 repositories {
     jcenter()
 }
