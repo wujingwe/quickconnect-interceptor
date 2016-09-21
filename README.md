@@ -26,7 +26,9 @@ compile project (':QuickConnectInterceptor')
 
 - Add QuickConnectInterceptor when creating OkHttpClient
 ```java
-client.interceptors().add(new QuickConnectInterceptor());
+OkHttpClient client = new OkHttpClient.Builder()
+    .addInterceptor((new QuickConnectInterceptor())
+    .build();
 ```
 
 - Send a request to Synology NAS server. 
