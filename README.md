@@ -27,7 +27,7 @@ compile project (':QuickConnectInterceptor')
 - Add QuickConnectInterceptor when creating OkHttpClient
 ```java
 OkHttpClient client = new OkHttpClient.Builder()
-    .addInterceptor((new QuickConnectInterceptor())
+    .addInterceptor(new QuickConnectInterceptor())
     .build();
 ```
 
