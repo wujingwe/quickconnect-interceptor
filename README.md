@@ -1,4 +1,4 @@
-QuickConnectInterceptor
+QuickConnectInterceptor [![Build Status](https://api.travis-ci.org/topwu/quickconnect-interceptor.svg?branch=master)](https://travis-ci.org/topwu/quickconnect-interceptor)
 =======================
 
 An OkHttp application interceptor for Synology Quick Connect
