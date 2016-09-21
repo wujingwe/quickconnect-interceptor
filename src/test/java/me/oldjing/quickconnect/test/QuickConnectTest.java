@@ -1,10 +1,6 @@
+package me.oldjing.quickconnect.test;
+
 import com.google.gson.Gson;
-import com.squareup.okhttp.HttpUrl;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
-import com.squareup.okhttp.mockwebserver.MockResponse;
-import com.squareup.okhttp.mockwebserver.MockWebServer;
 import me.oldjing.quickconnect.QuickConnectInterceptor;
 import me.oldjing.quickconnect.QuickConnectResolver;
 import me.oldjing.quickconnect.json.PingPongJson;
@@ -14,6 +10,12 @@ import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson.ExternalJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson.InterfaceJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServiceJson;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.mockwebserver.MockResponse;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -39,7 +41,7 @@ public class QuickConnectTest {
 	@Test
 	public void serverInfo() throws Exception {
 		final List<InterfaceJson> interfaceJsonList = new ArrayList<>();
-		interfaceJsonList.add(new InterfaceJson("localhost", null, "mask", "eth0"));
+		interfaceJsonList.add(new ServerInfoJson.ServerJson.InterfaceJson("localhost", null, "mask", "eth0"));
 		final ExternalJson externalJson = new ExternalJson("external", "external_ipv6");
 		final ServerJson serverJson = new ServerJson("dsm", "ddns", "fqdn", "gateway", interfaceJsonList, externalJson);
 		final EnvJson envJson = new EnvJson("tw", "twc.quickconnect.to");
@@ -92,11 +94,10 @@ public class QuickConnectTest {
 
 	@Test
 	public void serverID_demo() throws Exception {
-		OkHttpClient client = new OkHttpClient();
-
-		// add Quick Connect interceptor
-		client.interceptors()
-				.add(new QuickConnectInterceptor());
+        // add Quick Connect interceptor
+		OkHttpClient client = new OkHttpClient.Builder()
+                .addInterceptor(new QuickConnectInterceptor())
+                .build();
 
 		Request request = new Request.Builder()
 				.url(HttpUrl.parse("http://demo/webman/pingpong.cgi?action=cors"))
@@ -110,7 +111,7 @@ public class QuickConnectTest {
 
 	@Test
 	public void serverID_dsm() throws Exception {
-		OkHttpClient client = new OkHttpClient();
+        OkHttpClient.Builder builder = new OkHttpClient.Builder();
 		try {
 			SSLContext context = SSLContext.getInstance("TLS");
 			TrustManager[] trustManagers = new TrustManager[] { new X509TrustManager() {
@@ -130,8 +131,8 @@ public class QuickConnectTest {
 				}
 			}};
 			context.init(null, trustManagers, new SecureRandom());
-			client.setSslSocketFactory(context.getSocketFactory());
-			client.setHostnameVerifier(new HostnameVerifier() {
+            builder.sslSocketFactory(context.getSocketFactory());
+            builder.hostnameVerifier(new HostnameVerifier() {
 				@Override
 				public boolean verify(String s, SSLSession sslSession) {
 					// since most DSM doesn't have valid certificate, ignore verifying hostname
@@ -141,8 +142,8 @@ public class QuickConnectTest {
 		} catch (NoSuchAlgorithmException | KeyManagementException ignored) {}
 
 		// add Quick Connect interceptor
-		client.interceptors()
-				.add(new QuickConnectInterceptor());
+        builder.addInterceptor(new QuickConnectInterceptor());
+        OkHttpClient client = builder.build();
 
 		Request request = new Request.Builder()
 				.url(HttpUrl.parse("https://dsm/webman/pingpong.cgi?action=cors"))

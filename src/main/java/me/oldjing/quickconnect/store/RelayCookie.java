@@ -1,6 +1,6 @@
 package me.oldjing.quickconnect.store;
 
-import com.squareup.okhttp.HttpUrl;
+import okhttp3.HttpUrl;
 
 public class RelayCookie {
 

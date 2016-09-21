@@ -3,7 +3,6 @@ package me.oldjing.quickconnect;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
-import com.squareup.okhttp.*;
 import me.oldjing.quickconnect.json.PingPongJson;
 import me.oldjing.quickconnect.json.ServerInfoJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson;
@@ -13,6 +12,7 @@ import me.oldjing.quickconnect.json.ServerInfoJson.ServiceJson;
 import me.oldjing.quickconnect.store.RelayCookie;
 import me.oldjing.quickconnect.store.RelayHandler;
 import me.oldjing.quickconnect.store.RelayManager;
+import okhttp3.*;
 
 import javax.net.ssl.*;
 import java.io.IOException;
@@ -28,12 +28,12 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class QuickConnectResolver {
-	private OkHttpClient client;
+	private OkHttpClient defaultClient;
 	private HttpUrl requestUrl;
 	private Gson gson;
 
 	public QuickConnectResolver(HttpUrl requestUrl) {
-		client = new OkHttpClient();
+		OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
 		try {
 			SSLContext context = SSLContext.getInstance("TLS");
@@ -54,8 +54,8 @@ public class QuickConnectResolver {
 				}
 			}};
 			context.init(null, trustManagers, new SecureRandom());
-			client.setSslSocketFactory(context.getSocketFactory());
-			client.setHostnameVerifier(new HostnameVerifier() {
+			builder.sslSocketFactory(context.getSocketFactory());
+			builder.hostnameVerifier(new HostnameVerifier() {
 				@Override
 				public boolean verify(String s, SSLSession sslSession) {
 					// since most DSM doesn't have valid certificate, ignore verifying hostname
@@ -64,8 +64,9 @@ public class QuickConnectResolver {
 			});
 		} catch (NoSuchAlgorithmException | KeyManagementException ignored) {}
 
+		this.defaultClient = builder.build();
 		this.requestUrl = requestUrl;
-		gson = new Gson();
+		this.gson = new Gson();
 	}
 
 	public RelayCookie resolve(String serverID, String id) throws IOException {
@@ -122,8 +123,10 @@ public class QuickConnectResolver {
 
 	public ServerInfoJson getServerInfo(HttpUrl serverUrl, String serverID, String id) throws IOException {
 		// set timeout to 30 seconds
-		client.setConnectTimeout(30, TimeUnit.SECONDS);
-		client.setReadTimeout(30, TimeUnit.SECONDS);
+		OkHttpClient client = defaultClient.newBuilder()
+				.connectTimeout(30, TimeUnit.SECONDS)
+				.readTimeout(30, TimeUnit.SECONDS)
+				.build();
 
 		JsonObject jsonObject = new JsonObject();
 		jsonObject.addProperty("version", 1);
@@ -167,8 +170,10 @@ public class QuickConnectResolver {
 
 	public HttpUrl pingDSM(ServerInfoJson infoJson) {
 		// set timeout to 5 seconds
-		client.setConnectTimeout(5, TimeUnit.SECONDS);
-		client.setReadTimeout(5, TimeUnit.SECONDS);
+		final OkHttpClient client = defaultClient.newBuilder()
+				.connectTimeout(5, TimeUnit.SECONDS)
+				.readTimeout(5, TimeUnit.SECONDS)
+				.build();
 
 		ServerJson serverJson = infoJson.server;
 		if (serverJson == null) {
@@ -188,13 +193,13 @@ public class QuickConnectResolver {
 		AtomicInteger internalCount = new AtomicInteger(0);
 		if (ifaces != null) {
 			for (final InterfaceJson iface : ifaces) {
-				internalService.submit(createPingTask(iface.ip, port));
+				internalService.submit(createPingTask(client, iface.ip, port));
 				internalCount.incrementAndGet();
 
 				if (iface.ipv6 != null) {
 					for (Ipv6Json ipv6 : iface.ipv6) {
 						String ipv6Address = "[" + ipv6.address + "]";
-						internalService.submit(createPingTask(ipv6Address, port));
+						internalService.submit(createPingTask(client, ipv6Address, port));
 						internalCount.incrementAndGet();
 					}
 				}
@@ -206,12 +211,12 @@ public class QuickConnectResolver {
 		AtomicInteger hostCount = new AtomicInteger(0);
 		// ddns
 		if (!Util.isEmpty(serverJson.ddns) && !serverJson.ddns.equals("NULL")) {
-			hostService.submit(createPingTask(serverJson.ddns, port));
+			hostService.submit(createPingTask(client, serverJson.ddns, port));
 			hostCount.incrementAndGet();
 		}
 		// fqdn
 		if (!Util.isEmpty(serverJson.fqdn) && !serverJson.fqdn.equals("NULL")) {
-			hostService.submit(createPingTask(serverJson.fqdn, port));
+			hostService.submit(createPingTask(client, serverJson.fqdn, port));
 			hostCount.incrementAndGet();
 		}
 
@@ -221,12 +226,12 @@ public class QuickConnectResolver {
 		if (serverJson.external != null) {
 			String ip = serverJson.external.ip;
 			if (!Util.isEmpty(ip)) {
-				externalService.submit(createPingTask(ip, (externalPort != 0) ? externalPort : port));
+				externalService.submit(createPingTask(client, ip, (externalPort != 0) ? externalPort : port));
 				externalCount.incrementAndGet();
 			}
 			String ipv6 = serverJson.external.ipv6;
 			if (!Util.isEmpty(ipv6) && !ipv6.equals("::")) {
-				externalService.submit(createPingTask("[" + ipv6 + "]", (externalPort != 0) ? externalPort : port));
+				externalService.submit(createPingTask(client, "[" + ipv6 + "]", (externalPort != 0) ? externalPort : port));
 				externalCount.incrementAndGet();
 			}
 		}
@@ -284,9 +289,11 @@ public class QuickConnectResolver {
 			return null;
 		}
 
-		// set timeout to 5 seconds
-		client.setConnectTimeout(5, TimeUnit.SECONDS);
-		client.setReadTimeout(5, TimeUnit.SECONDS);
+		// set timeout to 10 seconds
+		OkHttpClient client = defaultClient.newBuilder()
+				.connectTimeout(5, TimeUnit.SECONDS)
+				.readTimeout(5, TimeUnit.SECONDS)
+				.build();
 
 		String relayIp = serviceJson.relay_ip;
 		int relayPort = serviceJson.relay_port;
@@ -294,7 +301,7 @@ public class QuickConnectResolver {
 		// tunnel address
 		ExecutorService executor = Executors.newFixedThreadPool(10);
 		CompletionService<String> service = new ExecutorCompletionService<>(executor);
-		service.submit(createPingTask(relayIp, relayPort));
+		service.submit(createPingTask(client, relayIp, relayPort));
 
 		try {
 			Future<String> future = service.take();
@@ -313,7 +320,7 @@ public class QuickConnectResolver {
 		return null;
 	}
 
-	private Callable<String> createPingTask(final String host, int port) {
+	private Callable<String> createPingTask(final OkHttpClient client, final String host, int port) {
 		final HttpUrl pingPongUrl = new HttpUrl.Builder()
 				.scheme(requestUrl.scheme())
 				.host(host)
@@ -355,8 +362,10 @@ public class QuickConnectResolver {
 		}
 
 		// set timeout to 30 seconds
-		client.setConnectTimeout(30, TimeUnit.SECONDS);
-		client.setReadTimeout(30, TimeUnit.SECONDS);
+		OkHttpClient client = defaultClient.newBuilder()
+				.connectTimeout(30, TimeUnit.SECONDS)
+				.readTimeout(30, TimeUnit.SECONDS)
+				.build();
 
 		final String server = infoJson.env.control_host;
 

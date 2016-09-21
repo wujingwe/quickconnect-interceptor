@@ -1,12 +1,12 @@
 package me.oldjing.quickconnect;
 
-import com.squareup.okhttp.HttpUrl;
-import com.squareup.okhttp.Interceptor;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
 import me.oldjing.quickconnect.store.RelayCookie;
 import me.oldjing.quickconnect.store.RelayHandler;
 import me.oldjing.quickconnect.store.RelayManager;
+import okhttp3.HttpUrl;
+import okhttp3.Interceptor;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import java.io.IOException;
 
@@ -26,7 +26,7 @@ public class QuickConnectInterceptor implements Interceptor {
 	public Response intercept(Chain chain) throws IOException {
 		Request request = chain.request();
 
-		HttpUrl requestUrl = request.httpUrl();
+		HttpUrl requestUrl = request.url();
 		boolean isHttps = requestUrl.isHttps();
 		String host = requestUrl.host();
 		if (Util.isQuickConnectId(host)) {

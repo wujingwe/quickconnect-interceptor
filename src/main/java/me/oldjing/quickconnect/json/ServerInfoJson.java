@@ -4,7 +4,6 @@ import com.google.gson.annotations.SerializedName;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 
-import java.security.Provider.Service;
 import java.util.List;
 
 public class ServerInfoJson {
