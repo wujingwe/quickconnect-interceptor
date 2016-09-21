@@ -1,10 +1,13 @@
 apply plugin: 'java'
 
-sourceSets {
-    test {
-        java {
-            srcDirs = ["test/java"]  // Note @Peter's comment below
-        }
+test {
+    //we want display the following test events
+    testLogging {
+        events "PASSED", "STARTED", "FAILED", "SKIPPED"
+    }
+    reports {
+        junitXml.enabled = false
+        html.enabled = true
     }
 }
 
