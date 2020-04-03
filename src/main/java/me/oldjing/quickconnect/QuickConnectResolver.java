@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +32,9 @@ public class QuickConnectResolver {
 	private OkHttpClient defaultClient;
 	private HttpUrl requestUrl;
 	private Gson gson;
+
+	private List<HttpUrl> availableServers = new ArrayList<>();
+	private List<HttpUrl> checkedServers = new ArrayList<>();
 
 	public QuickConnectResolver(HttpUrl requestUrl) {
 		OkHttpClient.Builder builder = new OkHttpClient.Builder();
@@ -122,6 +126,8 @@ public class QuickConnectResolver {
 	}
 
 	public ServerInfoJson getServerInfo(HttpUrl serverUrl, String serverID, String id) throws IOException {
+		availableServers.remove(serverUrl);
+		checkedServers.add(serverUrl);
 		// set timeout to 30 seconds
 		OkHttpClient client = defaultClient.newBuilder()
 				.connectTimeout(30, TimeUnit.SECONDS)
@@ -158,10 +164,19 @@ public class QuickConnectResolver {
 			if (serverInfoJson.server != null) {
 				// server info found!
 				return serverInfoJson;
-			} else if (serverInfoJson.sites != null && !serverInfoJson.sites.isEmpty()) {
-				String site = serverInfoJson.sites.get(0);
-				return getServerInfo(new HttpUrl.Builder()
-						.scheme("http").host(site).addPathSegment("Serv.php").build(), serverID, id);
+			}
+
+			if (serverInfoJson.sites != null && !serverInfoJson.sites.isEmpty()) {
+				for (String site: serverInfoJson.sites) {
+					HttpUrl httpUrl = new HttpUrl.Builder()
+                            .scheme("http").host(site).addPathSegment("Serv.php").build();
+					if (!checkedServers.contains(httpUrl) && !availableServers.contains(httpUrl))
+						availableServers.add(httpUrl);
+				}
+			}
+
+			if (availableServers.size() > 0) {
+				return getServerInfo(availableServers.remove(0), serverID, id);
 			}
 		}
 
