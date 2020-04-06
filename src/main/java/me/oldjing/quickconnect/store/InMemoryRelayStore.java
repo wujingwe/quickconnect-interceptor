@@ -9,22 +9,26 @@ public class InMemoryRelayStore implements RelayStore {
 	private Map<String, RelayCookie> allCookies = new HashMap<>();
 
 	@Override
-	public void add(String serverID, RelayCookie relayCookie) {
-		allCookies.put(serverID, relayCookie);
+	public void add(String serverID, int port, RelayCookie relayCookie) {
+		allCookies.put(createKey(serverID, port), relayCookie);
 	}
 
 	@Override
-	public RelayCookie get(String serverID) {
-		return allCookies.get(serverID);
+	public RelayCookie get(String serverID, int port) {
+		return allCookies.get(createKey(serverID, port));
 	}
 
 	@Override
-	public void remove(String serverID) {
-		allCookies.remove(serverID);
+	public void remove(String serverID, int port) {
+		allCookies.remove(createKey(serverID, port));
 	}
 
 	@Override
 	public void removeAll() {
 		allCookies.clear();
+	}
+
+	private String createKey(String serverID, int port) {
+		return String.format("%s_%s", serverID, port);
 	}
 }

@@ -11,11 +11,11 @@ public abstract class RelayHandler {
 		sInstance = relayHandler;
 	}
 
-	public abstract RelayCookie get(String serverID);
+	public abstract RelayCookie get(String serverID, int port);
 
-	public abstract void put(String serverID, RelayCookie cookie);
+	public abstract void put(String serverID, int port, RelayCookie cookie);
 
-	public abstract void remove(String serverID);
+	public abstract void remove(String serverID, int port);
 
 	public abstract void removeAll();
 }
