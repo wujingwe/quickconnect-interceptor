@@ -76,7 +76,7 @@ public class QuickConnectResolver {
 				}
 			}};
 			context.init(null, trustManagers, new SecureRandom());
-			builder.sslSocketFactory(context.getSocketFactory());
+			builder.sslSocketFactory(context.getSocketFactory(), (X509TrustManager) trustManagers[0]);
 			builder.hostnameVerifier(new HostnameVerifier() {
 				@Override
 				public boolean verify(String s, SSLSession sslSession) {
