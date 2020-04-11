@@ -3,6 +3,33 @@ package me.oldjing.quickconnect;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.stream.JsonReader;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
 import me.oldjing.quickconnect.json.PingPongJson;
 import me.oldjing.quickconnect.json.ServerInfoJson;
 import me.oldjing.quickconnect.json.ServerInfoJson.ServerJson;
@@ -12,25 +39,20 @@ import me.oldjing.quickconnect.json.ServerInfoJson.ServiceJson;
 import me.oldjing.quickconnect.store.RelayCookie;
 import me.oldjing.quickconnect.store.RelayHandler;
 import me.oldjing.quickconnect.store.RelayManager;
-import okhttp3.*;
-
-import javax.net.ssl.*;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.List;
-import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class QuickConnectResolver {
 	private OkHttpClient defaultClient;
 	private HttpUrl requestUrl;
 	private Gson gson;
+
+	private List<HttpUrl> availableServers = new ArrayList<>();
+	private List<HttpUrl> checkedServers = new ArrayList<>();
 
 	public QuickConnectResolver(HttpUrl requestUrl) {
 		OkHttpClient.Builder builder = new OkHttpClient.Builder();
@@ -54,7 +76,7 @@ public class QuickConnectResolver {
 				}
 			}};
 			context.init(null, trustManagers, new SecureRandom());
-			builder.sslSocketFactory(context.getSocketFactory());
+			builder.sslSocketFactory(context.getSocketFactory(), (X509TrustManager) trustManagers[0]);
 			builder.hostnameVerifier(new HostnameVerifier() {
 				@Override
 				public boolean verify(String s, SSLSession sslSession) {
@@ -69,19 +91,19 @@ public class QuickConnectResolver {
 		this.gson = new Gson();
 	}
 
-	public RelayCookie resolve(String serverID, String id) throws IOException {
+	public RelayCookie resolve(String serverID, int port, String id) throws IOException {
 		if (!Util.isQuickConnectId(serverID)) {
 			throw new IllegalArgumentException("serverID isn't a Quick Connect ID");
 		}
 
 		RelayManager relayManager = (RelayManager) RelayHandler.getDefault();
-		RelayCookie cookie = relayManager.get(serverID);
+		RelayCookie cookie = relayManager.get(serverID, port);
 		if (cookie == null) {
 			cookie = new RelayCookie.Builder()
 					.serverID(serverID)
 					.id(id)
 					.build();
-			relayManager.put(serverID, cookie);
+			relayManager.put(serverID, port, cookie);
 		}
 
 		HttpUrl serverUrl = HttpUrl.parse("http://global.quickconnect.to/Serv.php");
@@ -122,6 +144,8 @@ public class QuickConnectResolver {
 	}
 
 	public ServerInfoJson getServerInfo(HttpUrl serverUrl, String serverID, String id) throws IOException {
+		availableServers.remove(serverUrl);
+		checkedServers.add(serverUrl);
 		// set timeout to 30 seconds
 		OkHttpClient client = defaultClient.newBuilder()
 				.connectTimeout(30, TimeUnit.SECONDS)
@@ -158,10 +182,19 @@ public class QuickConnectResolver {
 			if (serverInfoJson.server != null) {
 				// server info found!
 				return serverInfoJson;
-			} else if (serverInfoJson.sites != null && !serverInfoJson.sites.isEmpty()) {
-				String site = serverInfoJson.sites.get(0);
-				return getServerInfo(new HttpUrl.Builder()
-						.scheme("http").host(site).addPathSegment("Serv.php").build(), serverID, id);
+			}
+
+			if (serverInfoJson.sites != null && !serverInfoJson.sites.isEmpty()) {
+				for (String site: serverInfoJson.sites) {
+					HttpUrl httpUrl = new HttpUrl.Builder()
+                            .scheme("http").host(site).addPathSegment("Serv.php").build();
+					if (!checkedServers.contains(httpUrl) && !availableServers.contains(httpUrl))
+						availableServers.add(httpUrl);
+				}
+			}
+
+			if (availableServers.size() > 0) {
+				return getServerInfo(availableServers.remove(0), serverID, id);
 			}
 		}
 

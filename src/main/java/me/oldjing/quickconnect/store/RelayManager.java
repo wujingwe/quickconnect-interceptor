@@ -17,18 +17,18 @@ public class RelayManager extends RelayHandler {
 	}
 
 	@Override
-	public RelayCookie get(String serverID) {
-		return relayJar.get(serverID);
+	public RelayCookie get(String serverID, int port) {
+		return relayJar.get(serverID, port);
 	}
 
 	@Override
-	public void put(String serverID, RelayCookie cookie) {
-		relayJar.add(serverID, cookie);
+	public void put(String serverID, int port, RelayCookie cookie) {
+		relayJar.add(serverID, port, cookie);
 	}
 
 	@Override
-	public void remove(String serverID) {
-		relayJar.remove(serverID);
+	public void remove(String serverID, int port) {
+		relayJar.remove(serverID, port);
 	}
 
 	@Override

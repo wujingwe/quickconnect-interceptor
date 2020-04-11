@@ -1,5 +1,7 @@
 package me.oldjing.quickconnect;
 
+import java.io.IOException;
+
 import me.oldjing.quickconnect.store.RelayCookie;
 import me.oldjing.quickconnect.store.RelayHandler;
 import me.oldjing.quickconnect.store.RelayManager;
@@ -7,8 +9,6 @@ import okhttp3.HttpUrl;
 import okhttp3.Interceptor;
 import okhttp3.Request;
 import okhttp3.Response;
-
-import java.io.IOException;
 
 public class QuickConnectInterceptor implements Interceptor {
 
@@ -33,7 +33,8 @@ public class QuickConnectInterceptor implements Interceptor {
 			final String serverID = host;
 			final String id = isHttps ? ID_DSM_PORTAL_HTTPS : ID_DSM_PORTAL;
 
-			RelayCookie cookie = relayManager.get(serverID);
+			int port = requestUrl.port();
+			RelayCookie cookie = relayManager.get(serverID, port);
 			if (cookie == null) {
 				// no quick connect information yet!
 				cookie = new RelayCookie.Builder()
@@ -44,10 +45,10 @@ public class QuickConnectInterceptor implements Interceptor {
 			if (cookie.resolvedUrl() == null) {
 				// not resolved yet!
 				QuickConnectResolver resolver = new QuickConnectResolver(requestUrl);
-				cookie = resolver.resolve(serverID, id);
+				cookie = resolver.resolve(serverID, port, id);
 
 				// update cache
-				relayManager.put(serverID, cookie);
+				relayManager.put(serverID, port, cookie);
 			}
 			HttpUrl resolvedUrl = cookie.resolvedUrl();
 			if (resolvedUrl == null) {
