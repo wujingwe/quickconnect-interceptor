@@ -92,6 +92,7 @@ public class QuickConnectTest {
 		assertEquals(result, serverInfoJson);
 	}
 
+	@Ignore
 	@Test
 	public void serverID_demo() throws Exception {
         // add Quick Connect interceptor
@@ -109,6 +110,7 @@ public class QuickConnectTest {
 		assertNotNull(responseString);
 	}
 
+	@Ignore
 	@Test
 	public void serverID_dsm() throws Exception {
         OkHttpClient.Builder builder = new OkHttpClient.Builder();
