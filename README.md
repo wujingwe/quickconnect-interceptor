@@ -1,4 +1,4 @@
-QuickConnectInterceptor [![Build Status](https://app.travis-ci.com/jingweiwu-tw/quickconnect-interceptor.svg?branch=master)](https://app.travis-ci.com/jingweiwu-tw/quickconnect-interceptor)
+QuickConnectInterceptor [![Build Status](https://app.travis-ci.com/wujingwe/quickconnect-interceptor.svg?branch=master)](https://app.travis-ci.com/jingweiwu-tw/quickconnect-interceptor)
 =======================
 
 An OkHttp application interceptor for Synology Quick Connect
